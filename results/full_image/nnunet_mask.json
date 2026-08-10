@@ -1,0 +1,23 @@
+{
+  "file": "nnunet_mask.tif",
+  "method": "nnU-Net v2 nnUNetTrainer_5epochs fold-all",
+  "probability_threshold": 0.5,
+  "inference_scale": 2.0445,
+  "inference_shape_yx": [
+    30668,
+    23504
+  ],
+  "shape_yx": [
+    15000,
+    11496
+  ],
+  "dtype": "uint8",
+  "values": [
+    0,
+    255
+  ],
+  "foreground_fraction": 0.5651447749942009,
+  "sha256": "601cbf83703949cbd7d4567158798295ad9e3ca039c8d24116d480e45dba91d0",
+  "bytes": 13683107,
+  "evaluation": "Five-fold ROI cross-validation and full-image visual inspection"
+}

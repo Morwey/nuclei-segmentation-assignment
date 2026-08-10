@@ -1,0 +1,23 @@
+{
+  "file": "cellpose_sam_mask.tif",
+  "method": "Cellpose-SAM fine-tuned on all five ROIs",
+  "model_sha256": "09268b259a79df29e1597cebd5caf5b3cf9042b69a4dcb2187abc83cc4762ee0",
+  "cellprob_threshold": 0.0,
+  "flow_threshold": 0.4,
+  "inference_scale": 1.0,
+  "tile_size": 1536,
+  "halo": 64,
+  "shape_yx": [
+    15000,
+    11496
+  ],
+  "dtype": "uint8",
+  "values": [
+    0,
+    255
+  ],
+  "foreground_fraction": 0.35614261772210626,
+  "sha256": "af8465aa1a0571504d48998116249de8ea7b0bb5cd64d9c9ab1a2be955b8f6d2",
+  "bytes": 8598015,
+  "inference_seconds": 2703.611276875017
+}

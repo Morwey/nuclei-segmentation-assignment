@@ -1,0 +1,18 @@
+{
+  "base_weights": "cpsam_v2",
+  "diameter_px": 30.4,
+  "resolution_scale": 2.0445,
+  "min_size_px": 20,
+  "default_cellprob_threshold": 0.0,
+  "default_flow_threshold": 0.4,
+  "cellprob_grid": [-0.5, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5],
+  "flow_grid": [0.0, 0.4, 0.8],
+  "selection_error_margin": 0.075,
+  "epochs": 30,
+  "images_per_epoch": 4,
+  "learning_rate": 0.00001,
+  "weight_decay": 0.1,
+  "batch_size": 1,
+  "crop_size": 256,
+  "include_degraded_training_pairs": true
+}

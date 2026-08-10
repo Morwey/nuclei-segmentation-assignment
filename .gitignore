@@ -1,0 +1,15 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# The supplied full-resolution image is 172 MB and is not redistributed.
+data/full_image/
+
+# Generated checkpoints and nnU-Net working directories.
+models/
+work/
+nnUNet_raw/
+nnUNet_preprocessed/
+nnUNet_results/
