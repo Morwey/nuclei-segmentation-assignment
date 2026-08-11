@@ -1,0 +1,10 @@
+{
+  "uncertainty": "normalized binary predictive entropy",
+  "patch_score": "mean of highest-entropy 10% pixels",
+  "top_fraction": 0.1,
+  "selection_budget": 20,
+  "max_patches_per_source_image": 1,
+  "random_seed": 20260811,
+  "spatch_scale": 0.727,
+  "spatch_target_external_sampling_ratio": "1:1"
+}

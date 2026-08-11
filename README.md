@@ -2,7 +2,7 @@
 
 本仓库完成一张 15000x11496 DAPI 全图的细胞核二值分割，并在 5 个带人工 Mask 的
 256x256 ROI 上比较 Cellpose-SAM 与 nnU-Net v2。两条路线分别完成交叉验证、全量
-训练和整图推理。
+训练和整图推理；另使用两套公开数据模拟归一化预测熵驱动的主动选样。
 
 完整实验设计和结果见 [技术报告](docs/REPORT.md)；排版版见
 [PDF](docs/REPORT.pdf)。
@@ -19,6 +19,25 @@
 | nnU-Net v2 从头训练 | 0.9130 | 8.38% | 8.73% |
 
 ![指标比较](results/figures/metric_comparison.png)
+
+## 公开数据主动选样
+
+候选块按归一化预测熵排序，每块取熵最高 10% 像素的平均值；高熵与随机策略使用
+相同的 20 块标注预算，同一公开视野最多选择 1 块。选样阶段只读取模型概率，公开
+标注用于随后评价和微调。
+
+| 数据 | 候选块 | 熵与像素错误 rho | 高熵块错误 | 随机块错误 | 原模型 Dice | 高熵 Dice | 随机 Dice |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| BBBC039 | 600 | 0.468 | 14.82% | 10.66% | 0.9083 | 0.9073 | 0.9023 |
+| SPATCH DAPI | 747 | 0.226 | 24.89% | 20.66% | 0.9083 | **0.9105** | 0.9053 |
+
+SPATCH 微调采用目标/外部 1:1 采样。两套数据中，高熵样本的实际错误均高于随机
+样本，等预算微调结果也均高于随机组。
+
+![主动选样对比](results/figures/active_learning_comparison.png)
+
+SPATCH 高熵样本的 DAPI、人工 Mask、原模型预测和熵图见
+[样本示例](results/figures/active_learning_entropy_examples.png)。
 
 ## 整图结果
 
@@ -41,8 +60,9 @@ Cellpose-SAM 和 nnU-Net 分别使用全部 5 个 ROI 训练，并输出同尺�
 ├── docs/                    # Markdown 与 PDF 实验报告
 ├── results/
 │   ├── full_image/          # 两种方法的完整 Mask 与元数据
+│   ├── active_learning/     # 公开数据选样与微调汇总
 │   ├── roi_predictions/     # 5 折留出预测
-│   ├── figures/             # 指标、ROI 和整图抽检图
+│   ├── figures/             # 指标、主动选样、ROI 和整图图表
 │   └── metrics_*.csv/json   # 逐图与汇总指标
 ├── scripts/                 # 训练、评估和整图推理入口
 ├── src/                     # 数据处理、模型流程和指标代码
@@ -80,6 +100,17 @@ pip install -r requirements-nnunet.txt
 ./scripts/run_nnunet.sh
 ./scripts/infer_nnunet_full.sh /absolute/path/to/Y00039K4_DAPI_transformed-c.tif
 ```
+
+对候选概率图执行归一化预测熵排序：
+
+```bash
+python src/rank_uncertain_patches.py pool_predictions.npz selected_patches.csv \
+  --budget 20 --top-fraction 0.1
+```
+
+输入 NPZ 包含 `probabilities`、`patch_ids` 和 `source_ids`。公开数据下载、候选块生成
+和 nnU-Net 微调流程见
+[`cell_seg_nnunet_hd`](https://github.com/Morwey/cell_seg_nnunet_hd)。
 
 同时运行两条整图路线：
 
