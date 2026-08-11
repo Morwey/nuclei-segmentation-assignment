@@ -9,13 +9,12 @@
 
 Cellpose-SAM 微调的宏平均 Dice 为 0.9259，FNR 为 6.61%，FDR 为 7.95%；
 nnU-Net 的对应结果为 0.9130、8.38% 和 8.73%。Cellpose-SAM 微调取得最高 Dice，
-nnU-Net 的漏检和误检比例接近。两种方法分别生成与原图同尺寸的完整二值 Mask，
-并在相同位置进行整图抽检。
+nnU-Net 的漏检和误检比例接近。Cellpose-SAM、nnU-Net 和归一化熵模型均生成与
+原图同尺寸的完整二值 Mask，并在相同位置进行整图抽检。
 
 在 nnU-Net 路线上，另以 BBBC039 和 SPATCH DAPI 构建候选池，模拟固定 20 块标注
-预算。归一化预测熵在两套数据中均富集了实际高错误区域；SPATCH 采用目标数据与
-外部数据 1:1 采样后，高熵组留出 Dice 为 0.9105，高于随机组的 0.9053 和原模型
-的 0.9083。
+预算。归一化预测熵在两套数据中均富集了实际高错误区域。SPATCH 高熵模型的留出
+Dice、FNR 和 FDR 分别为 0.9105、7.92% 和 9.95%，并完成整图输出。
 
 ## 1. 任务与数据
 
@@ -161,6 +160,26 @@ ROI 2、3 的 Cellpose-SAM 预测边界偏宽；ROI 5 的低对比度边界出�
 加入低分辨率副本后，模拟低分辨率输入的 Dice 与原始 ROI 相差 0.0024；FNR 和 FDR
 分别相差 0.08 和 0.51 个百分点。
 
+### 4.5 归一化熵模型逐 ROI 结果
+
+SPATCH 高熵 20 块与目标训练数据按 1:1 采样，得到 nnU-Net fold 0 模型。模型阈值
+为 0.571；ROI 1 为留出图，ROI 2-5 为该折训练图。
+
+| ROI | 分组 | Dice | FNR | FDR |
+|---:|---|---:|---:|---:|
+| 1 | 留出 | 0.9105 | 7.92% | 9.95% |
+| 2 | 训练 | 0.9738 | 2.57% | 2.68% |
+| 3 | 训练 | 0.9821 | 1.99% | 1.59% |
+| 4 | 训练 | 0.9752 | 2.47% | 2.49% |
+| 5 | 训练 | 0.9694 | 2.95% | 3.16% |
+
+![归一化熵模型的逐 ROI 结果](../results/figures/entropy_model_roi_results.png)
+
+预测 Mask 与完整混淆矩阵见
+[`results/roi_predictions/nnunet_entropy_spatch_fold0`](../results/roi_predictions/nnunet_entropy_spatch_fold0)
+和
+[`results/active_learning/entropy_model_per_roi.csv`](../results/active_learning/entropy_model_per_roi.csv)。
+
 ## 5. 公开数据主动选样
 
 ### 5.1 候选池与评分
@@ -170,23 +189,19 @@ ROI 2、3 的 Cellpose-SAM 预测边界偏宽；ROI 5 的低对比度边界出�
 | BBBC039 | 100 张训练图，Hoechst 核图像及人工 Mask | 600 | 每张图提取 6 个 256x256 块 |
 | SPATCH DAPI | COAD、HCC、OV 共 30 个视野及人工核边界 | 750 | 按核尺度缩放 0.727 后提取 256x256 块 |
 
-对于模型输出的前景概率 \(p\)，归一化二元预测熵定义为：
+对于模型输出的前景概率 p，归一化二元预测熵定义为：
 
 \[
 H(p) = [-p ln(p) - (1-p) ln(1-p)] / ln(2)
 \]
 
 每个候选块以熵最高 10% 像素的平均值作为不确定性分数。两套数据均固定选择 20
-个块，每张原图最多取 1 个，避免少数视野占满预算。三组选择策略使用相同候选池：
+个块，每张原图最多取 1 个。两组选择策略使用相同候选池：
 
 | 策略 | 选择依据 | 数量 |
 |---|---|---:|
 | 高熵 | 预测概率 | 20 |
 | 随机 | 候选块编号，随机种子 20260811 | 20 |
-| 熵与难例混合 | 10 个高熵块、5 个高 FDR 块、5 个高 FNR 块 | 20 |
-
-高熵和随机策略模拟未标注池选样；熵与难例混合策略使用公开 Mask 计算 FDR 和 FNR，
-作为监督难例挖掘对照。
 
 ### 5.2 选样结果
 
@@ -198,35 +213,10 @@ H(p) = [-p ln(p) - (1-p) ln(1-p)] / ln(2)
 两套公开数据中，高熵组的实际像素错误率均高于随机组。归一化预测熵能够优先找到
 当前模型边界不稳定、前景判定困难的图像块。
 
-![主动选样与等预算微调结果](../results/figures/active_learning_comparison.png)
-
 SPATCH 高熵样例同时展示 DAPI、人工 Mask、模型边界与预测熵；高熵主要集中在核
 边界、粘连区域和低对比度结构。
 
 ![SPATCH DAPI 高熵样例](../results/figures/active_learning_entropy_examples.png)
-
-### 5.3 等预算微调
-
-补充实验固定使用 fold 0、相同初始化和训练器，目标域由 4 张训练 ROI 与 1 张留出
-ROI 组成，阈值在 4 张训练 ROI 上确定。BBBC039 直接加入 20 个外部块；SPATCH
-同时比较目标数据与外部数据 4:20 和 20:20 两种采样比例。
-
-| 数据 | 策略 | 目标:外部 | Dice | FNR | FDR |
-|---|---|---:|---:|---:|---:|
-| BBBC039 | 原模型 | 4:0 | 0.9083 | 8.73% | 9.60% |
-| BBBC039 | 高熵 | 4:20 | 0.9073 | 7.69% | 10.80% |
-| BBBC039 | 熵与难例混合 | 4:20 | 0.9074 | 7.48% | 10.97% |
-| BBBC039 | 随机 | 4:20 | 0.9023 | 7.91% | 11.55% |
-| SPATCH DAPI | 原模型 | 4:0 | 0.9083 | 8.73% | 9.60% |
-| SPATCH DAPI | 高熵 | 4:20 | 0.9070 | 7.70% | 10.86% |
-| SPATCH DAPI | 熵与难例混合 | 4:20 | 0.8996 | 7.70% | 12.27% |
-| SPATCH DAPI | 随机 | 4:20 | 0.9013 | 9.66% | 10.07% |
-| SPATCH DAPI | 高熵 | 20:20 | **0.9105** | 7.92% | **9.95%** |
-| SPATCH DAPI | 随机 | 20:20 | 0.9053 | **7.85%** | 11.03% |
-
-BBBC039 高熵组优于随机组，原模型 Dice 最高。SPATCH 在 4:20 采样时三组均低于
-原模型；调整为 1:1 后，高熵组比随机组高 0.0052 Dice，并比原模型高 0.0022。
-选样分数决定外部数据的优先级，目标域与外部数据的采样比例共同影响微调结果。
 
 ## 6. 整图推理
 
@@ -258,20 +248,35 @@ BBBC039 高熵组优于随机组，原模型 Dice 最高。SPATCH 在 4:20 采�
 
 ![nnU-Net 整图结果与局部抽检](../results/figures/nnunet_full_overview.png)
 
-### 6.3 相同位置抽检
+### 6.3 nnU-Net + SPATCH 高熵选样
+
+该模型使用 SPATCH 高熵 20 块，并按目标数据与外部数据 1:1 采样完成 fold 0 微调。
+整图按 2.0445 倍尺度推理，原图分块大小为 2048x2048，上下文为 256 像素，概率
+阈值为 0.571。
+
+| 结果 | 路径 |
+|---|---|
+| 完整 Mask | [`results/full_image/nnunet_entropy_spatch_mask.tif`](../results/full_image/nnunet_entropy_spatch_mask.tif) |
+| 元数据 | [`results/full_image/nnunet_entropy_spatch_mask.json`](../results/full_image/nnunet_entropy_spatch_mask.json) |
+| 抽检图 | [`results/figures/nnunet_entropy_spatch_full_overview.png`](../results/figures/nnunet_entropy_spatch_full_overview.png) |
+
+![归一化熵模型整图结果与局部抽检](../results/figures/nnunet_entropy_spatch_full_overview.png)
+
+### 6.4 相同位置抽检
 
 整图抽检固定 4 个坐标，覆盖高密度核区、低密度区、低对比度区和组织边缘。每个
-位置同时展示 DAPI、Cellpose-SAM 和 nnU-Net，便于直接比较前景范围与边界形态。
+位置同时展示 DAPI、Cellpose-SAM、nnU-Net 和归一化熵模型，便于直接比较前景
+范围与边界形态。
 
-![两种方法的整图局部对比](../results/figures/full_image_method_comparison.png)
+![三种模型的整图局部对比](../results/figures/full_image_method_comparison.png)
 
 Cellpose-SAM 的整图前景比例为 35.6%，4 个抽检区域中核间间隙和单核轮廓较清楚。
 nnU-Net 的整图前景比例为 56.5%，在高密度区域覆盖范围接近 Cellpose-SAM，在
-低对比度和细长结构区域形成更宽的连续前景。两种方法的整图形态差异与 ROI 上
-Cellpose-SAM 微调取得更高 Dice 的结果一致。
+低对比度和细长结构区域形成更宽的连续前景。归一化熵模型的整图前景比例为 43.7%，
+位于两者之间；单核范围比原 nnU-Net 收紧，并保留较连续的核边界。
 
-完整 Mask 均经过尺寸、数据类型、取值集合和 SHA-256 检查。整图统计记录在各自的
-JSON 文件中；Dice、FNR 和 FDR 来自第 4 节的 ROI 交叉验证。
+三张完整 Mask 均经过尺寸、数据类型、取值集合和 SHA-256 检查。整图统计记录在
+各自的 JSON 文件中；Dice、FNR 和 FDR 来自第 4 节的 ROI 结果。
 
 ## 7. 计算环境与复现
 
@@ -279,20 +284,22 @@ JSON 文件中；Dice、FNR 和 FDR 来自第 4 节的 ROI 交叉验证。
 nnU-Net v2 2.8.1。训练与网络推理使用 Apple MPS；Cellpose dynamics 在 CPU 上
 执行。
 
-仓库包含固定折分、模型参数、15 张 ROI 留出预测、逐图指标、主动选样结果、两张完整
-Mask、整图抽检图和单元测试。运行入口集中在 `scripts/`：
+仓库包含固定折分、模型参数、ROI 预测、逐图指标、主动选样结果、三张完整 Mask、
+整图抽检图和单元测试。运行入口集中在 `scripts/` 和 `src/`：
 
 - `run_cellpose.sh`：Cellpose-SAM 直接推理、5 折微调和全量训练；
 - `run_nnunet.sh`：nnU-Net 数据准备、5 折训练和全量训练；
 - `infer_cellpose_full.sh`：Cellpose-SAM 分块整图推理；
 - `infer_nnunet_full.sh`：nnU-Net 滑窗整图推理；
 - `evaluate.sh`：统一重算 ROI 指标；
-- `src/rank_uncertain_patches.py`：按归一化预测熵排序候选块并执行来源去重。
+- `src/rank_uncertain_patches.py`：按归一化预测熵排序候选块并执行来源去重；
+- `src/evaluate_entropy_model.py`：生成归一化熵模型的逐 ROI Mask、指标和图；
+- `src/infer_entropy_nnunet_full.py`：归一化熵模型分块整图推理。
 
 ## 8. 误差特点与后续实验
 
 当前误差主要集中在三类位置：低对比度核边界产生漏分，明亮核周围的弱荧光产生
-边界外扩，细长结构产生连续前景。两种方法在同一位置的响应不同，整图对比图保留了
+边界外扩，细长结构产生连续前景。三种模型在同一位置的响应不同，整图对比图保留了
 这些差异。
 
 后续实验按以下顺序开展：
@@ -309,13 +316,14 @@ Cellpose-SAM 预训练模型直接推理已达到 0.9152 Dice；任务内微调�
 0.9259，并将 FDR 从 10.76% 降至 7.95%。nnU-Net 从头训练得到 0.9130 Dice，
 FNR 与 FDR 分别为 8.38% 和 8.73%。
 
-两条路线均完成全量训练和整图输出。Cellpose-SAM 在 ROI 上取得最高 Dice，
-整图抽检也呈现更清楚的核间分隔；nnU-Net 提供结构独立的从头训练结果。两张完整
-Mask 和相同位置抽检图共同构成整图交付。
+两条基础路线均完成全量训练和整图输出。Cellpose-SAM 在 ROI 上取得最高 Dice，
+整图抽检也呈现更清楚的核间分隔；nnU-Net 提供结构独立的从头训练结果。归一化熵
+模型补充了公开高熵样本微调后的逐 ROI 和整图结果。三张完整 Mask 和相同位置抽检图
+共同构成整图交付。
 
 公开数据实验进一步给出固定预算下的选样结果。高熵块在 BBBC039 和 SPATCH 中均
-具有更高实际错误率；SPATCH 采用 1:1 采样后，高熵选样的留出 Dice 高于随机选样和
-原模型，适合作为后续人工标注的候选排序方法。
+具有更高实际错误率。SPATCH 高熵模型在留出 ROI 上得到 0.9105 Dice、7.92% FNR
+和 9.95% FDR，并完成逐 ROI Mask 与整图 Mask 交付。
 
 ## 参考文献
 

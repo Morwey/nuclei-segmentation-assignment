@@ -6,5 +6,10 @@
   "max_patches_per_source_image": 1,
   "random_seed": 20260811,
   "spatch_scale": 0.727,
-  "spatch_target_external_sampling_ratio": "1:1"
+  "spatch_target_external_sampling_ratio": "1:1",
+  "selected_model": "Dataset509_NucleiSPATCHEntropy20Balanced fold 0",
+  "selected_model_threshold": 0.571,
+  "full_image_scale": 2.0445,
+  "full_image_tile_size": 2048,
+  "full_image_context": 256
 }

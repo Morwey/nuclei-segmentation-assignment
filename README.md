@@ -26,29 +26,32 @@
 相同的 20 块标注预算，同一公开视野最多选择 1 块。选样阶段只读取模型概率，公开
 标注用于随后评价和微调。
 
-| 数据 | 候选块 | 熵与像素错误 rho | 高熵块错误 | 随机块错误 | 原模型 Dice | 高熵 Dice | 随机 Dice |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| BBBC039 | 600 | 0.468 | 14.82% | 10.66% | 0.9083 | 0.9073 | 0.9023 |
-| SPATCH DAPI | 747 | 0.226 | 24.89% | 20.66% | 0.9083 | **0.9105** | 0.9053 |
+| 数据 | 候选块 | 熵与像素错误 rho | 高熵块错误 | 随机块错误 |
+|---|---:|---:|---:|---:|
+| BBBC039 | 600 | 0.468 | 14.82% | 10.66% |
+| SPATCH DAPI | 747 | 0.226 | 24.89% | 20.66% |
 
-SPATCH 微调采用目标/外部 1:1 采样。两套数据中，高熵样本的实际错误均高于随机
-样本，等预算微调结果也均高于随机组。
-
-![主动选样对比](results/figures/active_learning_comparison.png)
+两套数据中，高熵样本的实际错误均高于随机样本。
 
 SPATCH 高熵样本的 DAPI、人工 Mask、原模型预测和熵图见
 [样本示例](results/figures/active_learning_entropy_examples.png)。
 
+SPATCH 高熵 20 块与目标训练数据按 1:1 采样后得到 nnU-Net fold 0 模型。阈值
+0.571 下，留出 ROI 的 Dice、FNR、FDR 分别为 0.9105、7.92% 和 9.95%。
+[五张 ROI 指标](results/active_learning/entropy_model_per_roi.csv)和
+[逐 ROI 结果图](results/figures/entropy_model_roi_results.png)均已保存。
+
 ## 整图结果
 
-Cellpose-SAM 和 nnU-Net 分别使用全部 5 个 ROI 训练，并输出同尺寸二值 TIFF：
+Cellpose-SAM、nnU-Net 和归一化熵模型均输出同尺寸二值 TIFF：
 
 | 方法 | 完整 Mask | 文件信息 | 抽检图 |
 |---|---|---|---|
 | Cellpose-SAM | [Mask](results/full_image/cellpose_sam_mask.tif) | [JSON](results/full_image/cellpose_sam_mask.json) | [PNG](results/figures/cellpose_sam_full_overview.png) |
 | nnU-Net v2 | [Mask](results/full_image/nnunet_mask.tif) | [JSON](results/full_image/nnunet_mask.json) | [PNG](results/figures/nnunet_full_overview.png) |
+| nnU-Net + SPATCH 高熵 | [Mask](results/full_image/nnunet_entropy_spatch_mask.tif) | [JSON](results/full_image/nnunet_entropy_spatch_mask.json) | [PNG](results/figures/nnunet_entropy_spatch_full_overview.png) |
 
-两种方法在相同位置的局部结果见
+三种模型在相同位置的局部结果见
 [整图抽检对比](results/figures/full_image_method_comparison.png)。
 
 ## 目录
@@ -59,8 +62,8 @@ Cellpose-SAM 和 nnU-Net 分别使用全部 5 个 ROI 训练，并输出同尺�
 ├── data/annotations/        # 5 组 ROI 与人工二值标注
 ├── docs/                    # Markdown 与 PDF 实验报告
 ├── results/
-│   ├── full_image/          # 两种方法的完整 Mask 与元数据
-│   ├── active_learning/     # 公开数据选样与微调汇总
+│   ├── full_image/          # 三种模型的完整 Mask 与元数据
+│   ├── active_learning/     # 公开数据选样与归一化熵模型指标
 │   ├── roi_predictions/     # 5 折留出预测
 │   ├── figures/             # 指标、主动选样、ROI 和整图图表
 │   └── metrics_*.csv/json   # 逐图与汇总指标
@@ -111,6 +114,8 @@ python src/rank_uncertain_patches.py pool_predictions.npz selected_patches.csv \
 输入 NPZ 包含 `probabilities`、`patch_ids` 和 `source_ids`。公开数据下载、候选块生成
 和 nnU-Net 微调流程见
 [`cell_seg_nnunet_hd`](https://github.com/Morwey/cell_seg_nnunet_hd)。
+选定模型的逐 ROI 评价和整图入口分别为 `src/evaluate_entropy_model.py` 与
+`src/infer_entropy_nnunet_full.py`。
 
 同时运行两条整图路线：
 

@@ -1,0 +1,25 @@
+{
+  "file": "nnunet_entropy_spatch_mask.tif",
+  "method": "nnU-Net v2 fold 0, SPATCH high-entropy 20, target/external 1:1",
+  "model_dataset": "Dataset509_NucleiSPATCHEntropy20Balanced",
+  "checkpoint": "checkpoint_final.pth",
+  "probability_threshold": 0.571,
+  "inference_scale": 2.0445,
+  "tile_size": 2048,
+  "context": 256,
+  "normalization": "whole-image z-score",
+  "shape_yx": [
+    15000,
+    11496
+  ],
+  "dtype": "uint8",
+  "values": [
+    0,
+    255
+  ],
+  "foreground_fraction": 0.4370300220366504,
+  "tiles": 48,
+  "elapsed_seconds": 384.7954840660095,
+  "sha256": "3ce22a7e2fd14769467b716619e03e9cc918cb022446f0ccee6c82973b87e5cd",
+  "bytes": 11051095
+}
